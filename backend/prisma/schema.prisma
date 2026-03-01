@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Role: PELANGGAN | ADMIN
+// OrderStatus: PENDING | CONFIRMED | PROCESSING | DONE | COMPLETED | CANCELLED
+// PaymentMethod: COD | BANK_TRANSFER
+// PaymentStatus: UNPAID | WAITING_CONFIRMATION | CONFIRMED | REJECTED
+
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  passwordHash   String
+  role           String   @default("PELANGGAN")
+  address        String?
+  phone          String?
+  expoPushToken  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  orders        Order[]
+  notifications Notification[]
+}
+
+model LaundryService {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  pricePerKg  Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems OrderItem[]
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  customerId      String
+  status          String   @default("PENDING")
+  paymentMethod   String
+  totalPrice      Float    @default(0)
+  estimatedWeight Float
+  actualWeight    Float?
+  pickupAddress   String
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  customer      User               @relation(fields: [customerId], references: [id])
+  items         OrderItem[]
+  payment       Payment?
+  statusHistory OrderStatusHistory[]
+}
+
+model OrderItem {
+  id          String @id @default(cuid())
+  orderId     String
+  serviceId   String
+  weightKg    Float
+  pricePerKg  Float
+  subtotal    Float
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service LaundryService @relation(fields: [serviceId], references: [id])
+}
+
+model Payment {
+  id             String    @id @default(cuid())
+  orderId        String    @unique
+  method         String
+  status         String    @default("UNPAID")
+  proofImageUrl  String?
+  confirmedAt    DateTime?
+  rejectedAt     DateTime?
+  rejectedReason String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(cuid())
+  orderId   String
+  status    String
+  note      String?
+  changedAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  data      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
